@@ -8,12 +8,16 @@
  */
 package org.opensearch.jobscheduler;
 
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.jobscheduler.rest.action.GetJobDetailsAction;
+import org.opensearch.jobscheduler.rest.action.GetJobDetailsTransportAction;
 import org.opensearch.jobscheduler.rest.action.RestGetJobDetailsAction;
 import org.opensearch.jobscheduler.rest.action.RestGetLockAction;
 import org.opensearch.jobscheduler.rest.action.RestReleaseLockAction;
@@ -49,6 +53,7 @@ import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -111,7 +116,7 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
         clusterService.addListener(this.sweeper);
         clusterService.addLifecycleListener(this.sweeper);
 
-        return Collections.emptyList();
+        return Collections.singletonList(jobDetailsService);
     }
 
     @Override
@@ -179,6 +184,11 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
             this.indicesToListen.add(jobIndexName);
             log.info("Loaded scheduler extension: {}, index: {}", jobType, jobIndexName);
         }
+    }
+
+    @Override
+    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+        return Arrays.asList(new ActionHandler<>(GetJobDetailsAction.INSTANCE, GetJobDetailsTransportAction.class));
     }
 
     public List<NamedXContentRegistry.Entry> getNamedXContent() {

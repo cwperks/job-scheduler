@@ -52,31 +52,10 @@ forbiddenApisTest.ignoreFailures = true
 validateNebulaPom.enabled = false
 loggerUsageCheck.enabled = false
 
-// Order is publish nebula, then jar then zip
-
-tasks.whenTaskAdded {task ->
-    if(task.name.contains("validatePluginJarPom") || task.name.contains("validatePluginZipPom")) {
-        task.enabled = false
-    }
-}
-
-tasks.matching {it.path in [
-        ":generatePomFileForPluginJarPublication"
-]}.all { task ->
-    task.mustRunAfter 'publishNebulaPublicationToMavenLocal', 'publishNebulaPublicationToSnapshotsRepository', 'publishNebulaPublicationToStagingRepository'
-}
-
-tasks.matching {it.path in [
-        ":publishPluginJarPublicationToMavenLocal",
-        ":validatePluginJarPom"
-]}.all { task ->
-    task.dependsOn 'generatePomFileForPluginJarPublication'
-}
-
 tasks.matching {it.path in [
         ":generatePomFileForPluginZipPublication"
 ]}.all { task ->
-    task.mustRunAfter 'publishPluginJarPublicationToMavenLocal', 'publishPluginJarPublicationToSnapshotsRepository', 'publishPluginJarPublicationToStagingRepository'
+    task.mustRunAfter 'publishNebulaPublicationToMavenLocal', 'publishNebulaPublicationToSnapshotsRepository', 'publishNebulaPublicationToStagingRepository'
 }
 
 tasks.matching {it.path in [
@@ -123,6 +102,37 @@ allprojects {
     // Default to the apache license
     project.ext.licenseName = 'The Apache Software License, Version 2.0'
     project.ext.licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    plugins.withType(ShadowPlugin).whenPluginAdded {
+        publishing {
+            repositories {
+                maven {
+                    name = 'staging'
+                    url = "${rootProject.buildDir}/local-staging-repo"
+                }
+            }
+            publications {
+                // add license information to generated poms
+                all {
+                    pom {
+                        name = "opensearch-job-scheduler"
+                        description = "OpenSearch Job Scheduler plugin"
+                    }
+                    pom.withXml { XmlProvider xml ->
+                        Node node = xml.asNode()
+                        node.appendNode('inceptionYear', '2021')
+
+                        Node license = node.appendNode('licenses').appendNode('license')
+                        license.appendNode('name', project.licenseName)
+                        license.appendNode('url', project.licenseUrl)
+
+                        Node developer = node.appendNode('developers').appendNode('developer')
+                        developer.appendNode('name', 'OpenSearch')
+                        developer.appendNode('url', 'https://github.com/opensearch-project/job-scheduler')
+                    }
+                }
+            }
+        }
+    }
 }
 
 publishing {
@@ -134,52 +144,17 @@ publishing {
                 packaging = "zip"
                 groupId = "org.opensearch.plugin"
             }
-            pom.withXml { XmlProvider xml ->
-                Node node = xml.asNode()
-                node.appendNode('inceptionYear', '2021')
-
-                Node license = node.appendNode('licenses').appendNode('license')
-                license.appendNode('name', project.licenseName)
-                license.appendNode('url', project.licenseUrl)
-
-                Node developer = node.appendNode('developers').appendNode('developer')
-                developer.appendNode('name', 'OpenSearch')
-                developer.appendNode('url', 'https://github.com/opensearch-project/job-scheduler')
-            }
-        }
-        pluginJar(MavenPublication){
-            pom {
-                name = "opensearch-job-scheduler"
-                description = "OpenSearch Job Scheduler plugin"
-                packaging = "jar"
-                groupId = "org.opensearch"
-            }
-            pom.withXml { XmlProvider xml ->
-                Node node = xml.asNode()
-                node.appendNode('inceptionYear', '2021')
-
-                Node license = node.appendNode('licenses').appendNode('license')
-                license.appendNode('name', project.licenseName)
-                license.appendNode('url', project.licenseUrl)
-
-                Node developer = node.appendNode('developers').appendNode('developer')
-                developer.appendNode('name', 'OpenSearch')
-                developer.appendNode('url', 'https://github.com/opensearch-project/job-scheduler')
-            }
         }
     }
     repositories {
         maven {
             name = "Snapshots" //  optional target repository name
-            url = "https://aws.oss.sonatype.org/content/repositories/snapshots"
-            credentials {
-                username "$System.env.SONATYPE_USERNAME"
-                password "$System.env.SONATYPE_PASSWORD"
-            }
-        }
-        maven {
-            name = 'Staging'
-            url = "${rootProject.buildDir}/local-staging-repo"
+            url = "${rootDir}/snapshots"
+            // url = "https://aws.oss.sonatype.org/content/repositories/snapshots"
+            // credentials {
+            //     username "$System.env.SONATYPE_USERNAME"
+            //     password "$System.env.SONATYPE_PASSWORD"
+            // }
         }
     }
 }

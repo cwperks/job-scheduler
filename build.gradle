@@ -187,7 +187,8 @@ task integTest(type: RestIntegTestTask) {
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
 }
-tasks.named("check").configure { dependsOn(integTest) }
+
+check.dependsOn(integTest)
 
 integTest {
     if (project.hasProperty('excludeTests')) {
@@ -345,8 +346,11 @@ jacocoTestReport {
     }
 }
 
-tasks.test.finalizedBy(jacocoTestReport)  // report is always generated after tests run
-tasks.jacocoTestReport.dependsOn(test) // tests are required to run before generating the report
+tasks.withType(Test) { // report is always generated after tests run
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport.dependsOn(test) // tests are required to run before generating the report
 
 // updateVersion: Task to auto increment to the next development iteration
 task updateVersion {

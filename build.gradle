@@ -26,6 +26,7 @@ buildscript {
 plugins {
     id 'com.netflix.nebula.ospackage' version "11.3.0"
     id 'java-library'
+    id 'jacoco'
     id "com.diffplug.spotless" version "6.17.0" apply false
 }
 
@@ -332,6 +333,21 @@ afterEvaluate {
         }
     }
 }
+
+jacoco {
+    reportsDirectory = file("$buildDir/reports/jacoco")
+}
+
+jacocoTestReport {
+    getExecutionData().setFrom(fileTree(buildDir).include("/jacoco/*.exec"))
+    reports {
+        xml.required = true
+    }
+}
+
+tasks.test.finalizedBy(jacocoTestReport)  // report is always generated after tests run
+tasks.jacocoTestReport.dependsOn(test) // tests are required to run before generating the report
+
 // updateVersion: Task to auto increment to the next development iteration
 task updateVersion {
     onlyIf { System.getProperty('newVersion') }

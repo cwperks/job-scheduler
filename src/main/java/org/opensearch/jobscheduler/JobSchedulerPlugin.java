@@ -8,14 +8,17 @@
  */
 package org.opensearch.jobscheduler;
 
+import org.opensearch.action.ActionRequest;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.core.action.ActionResponse;
 import org.opensearch.jobscheduler.rest.action.RestGetJobDetailsAction;
 import org.opensearch.jobscheduler.rest.action.RestGetLockAction;
+import org.opensearch.jobscheduler.rest.action.RestGetScheduleAction;
 import org.opensearch.jobscheduler.rest.action.RestReleaseLockAction;
 import org.opensearch.jobscheduler.scheduler.JobScheduler;
 import org.opensearch.jobscheduler.spi.JobSchedulerExtension;
@@ -38,6 +41,8 @@ import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
 import org.opensearch.index.IndexModule;
 import org.opensearch.indices.SystemIndexDescriptor;
+import org.opensearch.jobscheduler.transport.schedule.GetScheduleAction;
+import org.opensearch.jobscheduler.transport.schedule.TransportGetScheduleAction;
 import org.opensearch.jobscheduler.utils.JobDetailsService;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.ExtensiblePlugin;
@@ -51,6 +56,7 @@ import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -247,7 +253,13 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
         RestGetJobDetailsAction restGetJobDetailsAction = new RestGetJobDetailsAction(jobDetailsService);
         RestGetLockAction restGetLockAction = new RestGetLockAction(lockService);
         RestReleaseLockAction restReleaseLockAction = new RestReleaseLockAction(lockService);
-        return ImmutableList.of(restGetJobDetailsAction, restGetLockAction, restReleaseLockAction);
+        RestGetScheduleAction restGetScheduleAction = new RestGetScheduleAction();
+        return ImmutableList.of(restGetJobDetailsAction, restGetLockAction, restReleaseLockAction, restGetScheduleAction);
+    }
+
+    @Override
+    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+        return Arrays.asList(new ActionHandler<>(GetScheduleAction.INSTANCE, TransportGetScheduleAction.class));
     }
 
 }

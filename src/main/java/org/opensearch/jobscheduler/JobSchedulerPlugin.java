@@ -130,10 +130,16 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
             this.lockService,
             this.jobDetailsService
         );
+        for (String jobIndex : this.indexToJobProviders.keySet()) {
+            ScheduledJobProvider provider = this.indexToJobProviders.get(jobIndex);
+            this.scheduler.getScheduledJobInfo().putJobTypeToIndex(provider.getJobType(), jobIndex);
+        }
+        System.out.println("indexToJobProviders: " + indexToJobProviders);
+        System.out.println("jobTypeToIndex: " + this.scheduler.getScheduledJobInfo().getJobTypeToIndexMap());
         clusterService.addListener(this.sweeper);
         clusterService.addLifecycleListener(this.sweeper);
 
-        return List.of(this.lockService);
+        return List.of(this.lockService, this.scheduler.getScheduledJobInfo());
     }
 
     @Override

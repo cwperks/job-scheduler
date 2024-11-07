@@ -8,28 +8,41 @@
  */
 package org.opensearch.jobscheduler.transport.schedule;
 
-import org.opensearch.action.support.master.AcknowledgedResponse;
+import org.opensearch.core.action.ActionResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.ToXContentObject;
+import org.opensearch.core.xcontent.XContentBuilder;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Response class used to facilitate serialization/deserialization of the GetLock response
  */
-public class GetScheduleResponse extends AcknowledgedResponse implements ToXContentObject {
+public class GetScheduleResponse extends ActionResponse implements ToXContentObject {
 
-    public GetScheduleResponse(boolean status) {
-        super(status);
+    private Map<String, String> jobTypeToIndexMap;
+
+    public GetScheduleResponse(Map<String, String> jobTypeToIndexMap) {
+        this.jobTypeToIndexMap = jobTypeToIndexMap;
     }
 
     public GetScheduleResponse(StreamInput in) throws IOException {
         super(in);
+        jobTypeToIndexMap = in.readMap(StreamInput::readString, StreamInput::readString);
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
+        builder.field("job_type_to_index_map", jobTypeToIndexMap);
+        builder.endObject();
+        return builder;
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        super.writeTo(out);
+        out.writeMap(jobTypeToIndexMap, StreamOutput::writeString, StreamOutput::writeString);
     }
 }

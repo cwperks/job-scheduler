@@ -42,6 +42,6 @@ public class TransportGetScheduleAction extends HandledTransportAction<GetSchedu
     protected void doExecute(Task task, GetScheduleRequest request, ActionListener<GetScheduleResponse> actionListener) {
         System.out.println("ScheduledJobInfo: " + scheduledJobInfo);
         System.out.println("jobTypeToIndex: " + scheduledJobInfo.getJobTypeToIndexMap());
-        actionListener.onResponse(new GetScheduleResponse(true));
+        actionListener.onResponse(new GetScheduleResponse(scheduledJobInfo.getJobTypeToIndexMap()));
     }
 }

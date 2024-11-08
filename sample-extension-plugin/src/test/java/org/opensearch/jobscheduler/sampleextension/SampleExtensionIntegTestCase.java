@@ -99,6 +99,21 @@ public class SampleExtensionIntegTestCase extends OpenSearchRestTestCase {
         Assert.assertEquals("Unable to delete a watcher job", RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
     }
 
+    protected Map<String, Object> getScheduledJobInfoByJobType(String jobType) throws IOException {
+        Response response = makeRequest(
+            client(),
+            "POST",
+            "/_plugins/_job_scheduler/_schedule",
+            Collections.emptyMap(),
+            new StringEntity("{\"job_type\" : \"" + jobType + "\"}", ContentType.APPLICATION_JSON)
+        );
+        return JsonXContent.jsonXContent.createParser(
+            NamedXContentRegistry.EMPTY,
+            LoggingDeprecationHandler.INSTANCE,
+            response.getEntity().getContent()
+        ).map();
+    }
+
     protected Response makeRequest(
         RestClient client,
         String method,

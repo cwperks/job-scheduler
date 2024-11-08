@@ -44,7 +44,7 @@ ext {
 
 licenseHeaders.enabled = true
 testingConventions.enabled = false
-forbiddenApis.ignoreFailures = true
+forbiddenApis.ignoreFailures = false
 
 dependencyLicenses.enabled = false
 thirdPartyAudit.enabled = false

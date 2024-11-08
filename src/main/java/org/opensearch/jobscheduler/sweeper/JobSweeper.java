@@ -301,11 +301,6 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
                 this.fullSweepExecutor.submit(this::sweepAllJobIndices);
             }
         };
-        Runnable sweepOnStartup = () -> { this.fullSweepExecutor.submit(this::sweepAllJobIndices); };
-        // Sweep on startup
-        if (this.threadPool.generic() != null) {
-            this.threadPool.generic().submit(sweepOnStartup);
-        }
         this.scheduledFullSweep = this.threadPool.scheduleWithFixedDelay(scheduledSweep, sweepPeriod, ThreadPool.Names.SAME);
     }
 

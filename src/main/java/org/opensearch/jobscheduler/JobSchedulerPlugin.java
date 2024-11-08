@@ -9,7 +9,6 @@
 package org.opensearch.jobscheduler;
 
 import org.opensearch.action.ActionRequest;
-import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
@@ -46,7 +45,6 @@ import org.opensearch.jobscheduler.transport.schedule.GetScheduleAction;
 import org.opensearch.jobscheduler.transport.schedule.TransportGetScheduleAction;
 import org.opensearch.jobscheduler.utils.JobDetailsService;
 import org.opensearch.plugins.ActionPlugin;
-import org.opensearch.plugins.ClusterPlugin;
 import org.opensearch.plugins.ExtensiblePlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.SystemIndexPlugin;
@@ -71,7 +69,7 @@ import java.util.function.Supplier;
 
 import com.google.common.collect.ImmutableList;
 
-public class JobSchedulerPlugin extends Plugin implements ActionPlugin, ExtensiblePlugin, SystemIndexPlugin, ClusterPlugin {
+public class JobSchedulerPlugin extends Plugin implements ActionPlugin, ExtensiblePlugin, SystemIndexPlugin {
 
     public static final String OPEN_DISTRO_JOB_SCHEDULER_THREAD_POOL_NAME = "open_distro_job_scheduler";
     public static final String JS_BASE_URI = "/_plugins/_job_scheduler";
@@ -266,11 +264,6 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return Arrays.asList(new ActionHandler<>(GetScheduleAction.INSTANCE, TransportGetScheduleAction.class));
-    }
-
-    @Override
-    public void onNodeStarted(DiscoveryNode localNode) {
-        sweeper.afterStart();
     }
 
 }

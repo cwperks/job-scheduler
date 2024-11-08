@@ -13,10 +13,13 @@ import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.client.Client;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.core.action.ActionListener;
+import org.opensearch.jobscheduler.scheduler.JobSchedulingInfo;
 import org.opensearch.jobscheduler.scheduler.ScheduledJobInfo;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
+
+import java.util.Map;
 
 public class TransportGetScheduleAction extends HandledTransportAction<GetScheduleRequest, GetScheduleResponse> {
 
@@ -40,8 +43,8 @@ public class TransportGetScheduleAction extends HandledTransportAction<GetSchedu
 
     @Override
     protected void doExecute(Task task, GetScheduleRequest request, ActionListener<GetScheduleResponse> actionListener) {
-        System.out.println("ScheduledJobInfo: " + scheduledJobInfo);
-        System.out.println("jobTypeToIndex: " + scheduledJobInfo.getJobTypeToIndexMap());
-        actionListener.onResponse(new GetScheduleResponse(scheduledJobInfo.getJobTypeToIndexMap()));
+        String jobIndex = scheduledJobInfo.getJobTypeToIndexMap().get(request.getJobType());
+        Map<String, JobSchedulingInfo> jobIdToInfo = scheduledJobInfo.getJobsByIndex(jobIndex);
+        actionListener.onResponse(new GetScheduleResponse(jobIdToInfo));
     }
 }

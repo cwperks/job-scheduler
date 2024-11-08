@@ -13,6 +13,7 @@ import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.xcontent.ToXContentObject;
 import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.jobscheduler.scheduler.JobSchedulingInfo;
 
 import java.io.IOException;
 import java.util.Map;
@@ -22,27 +23,25 @@ import java.util.Map;
  */
 public class GetScheduleResponse extends ActionResponse implements ToXContentObject {
 
-    private Map<String, String> jobTypeToIndexMap;
+    private Map<String, JobSchedulingInfo> jobIdToInfoMap;
 
-    public GetScheduleResponse(Map<String, String> jobTypeToIndexMap) {
-        this.jobTypeToIndexMap = jobTypeToIndexMap;
+    public GetScheduleResponse(Map<String, JobSchedulingInfo> jobIdToInfoMap) {
+        this.jobIdToInfoMap = jobIdToInfoMap;
     }
 
     public GetScheduleResponse(StreamInput in) throws IOException {
         super(in);
-        jobTypeToIndexMap = in.readMap(StreamInput::readString, StreamInput::readString);
+        jobIdToInfoMap = in.readMap(StreamInput::readString, JobSchedulingInfo::new);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject();
-        builder.field("job_type_to_index_map", jobTypeToIndexMap);
-        builder.endObject();
+        builder.map(jobIdToInfoMap);
         return builder;
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeMap(jobTypeToIndexMap, StreamOutput::writeString, StreamOutput::writeString);
+        out.writeMap(jobIdToInfoMap, StreamOutput::writeString, (o, s) -> s.writeTo(o));
     }
 }

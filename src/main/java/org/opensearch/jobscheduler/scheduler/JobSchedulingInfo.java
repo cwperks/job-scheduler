@@ -8,12 +8,18 @@
  */
 package org.opensearch.jobscheduler.scheduler;
 
+import org.opensearch.core.common.io.stream.StreamInput;
+import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.core.common.io.stream.Writeable;
+import org.opensearch.core.xcontent.ToXContentFragment;
+import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.jobscheduler.spi.ScheduledJobParameter;
 import org.opensearch.threadpool.Scheduler;
 
+import java.io.IOException;
 import java.time.Instant;
 
-class JobSchedulingInfo {
+public class JobSchedulingInfo implements Writeable, ToXContentFragment {
 
     private String indexName;
     private String jobId;
@@ -28,6 +34,12 @@ class JobSchedulingInfo {
         this.indexName = indexName;
         this.jobId = jobId;
         this.jobParameter = jobParameter;
+    }
+
+    public JobSchedulingInfo(StreamInput in) throws IOException {
+        this.indexName = in.readString();
+        this.jobId = in.readString();
+        this.descheduled = in.readBoolean();
     }
 
     public String getIndexName() {
@@ -82,4 +94,27 @@ class JobSchedulingInfo {
         this.scheduledCancellable = scheduledCancellable;
     }
 
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        out.writeString(this.indexName);
+        out.writeString(this.jobId);
+        out.writeOptionalWriteable(this.jobParameter);
+        out.writeBoolean(this.descheduled);
+        out.writeInstant(this.actualPreviousExecutionTime);
+        out.writeInstant(this.expectedPreviousExecutionTime);
+        out.writeInstant(this.expectedExecutionTime);
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
+        builder.field("index_name", this.indexName);
+        builder.field("job_id", this.jobId);
+        builder.field("job_parameter", this.jobParameter);
+        builder.field("descheduled", this.descheduled);
+        builder.field("actual_previous_execution_time", this.actualPreviousExecutionTime);
+        builder.field("expected_previous_execution_time", this.expectedPreviousExecutionTime);
+        builder.field("expected_execution_time", this.expectedExecutionTime);
+        return builder.endObject();
+    }
 }

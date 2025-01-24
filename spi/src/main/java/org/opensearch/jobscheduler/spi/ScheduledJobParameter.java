@@ -8,15 +8,18 @@
  */
 package org.opensearch.jobscheduler.spi;
 
+import org.opensearch.core.common.io.stream.StreamOutput;
+import org.opensearch.core.common.io.stream.Writeable;
 import org.opensearch.jobscheduler.spi.schedule.Schedule;
 import org.opensearch.core.xcontent.ToXContentObject;
 
+import java.io.IOException;
 import java.time.Instant;
 
 /**
  * Job parameters that being used by the JobScheduler.
  */
-public interface ScheduledJobParameter extends ToXContentObject {
+public interface ScheduledJobParameter extends ToXContentObject, Writeable {
     /**
      * @return job name.
      */
@@ -66,5 +69,16 @@ public interface ScheduledJobParameter extends ToXContentObject {
      */
     default Double getJitter() {
         return null;
+    }
+
+    @Override
+    default void writeTo(StreamOutput out) throws IOException {
+        out.writeString(getName());
+        out.writeInstant(getLastUpdateTime());
+        out.writeInstant(getEnabledTime());
+        out.writeOptionalWriteable(getSchedule());
+        out.writeBoolean(isEnabled());
+        out.writeLong(getLockDurationSeconds());
+        out.writeDouble(getJitter());
     }
 }

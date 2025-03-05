@@ -54,8 +54,7 @@ public class JobScheduler {
         this.clock = clock;
     }
 
-    @VisibleForTesting
-    ScheduledJobInfo getScheduledJobInfo() {
+    public ScheduledJobInfo getScheduledJobInfo() {
         return this.scheduledJobInfo;
     }
 

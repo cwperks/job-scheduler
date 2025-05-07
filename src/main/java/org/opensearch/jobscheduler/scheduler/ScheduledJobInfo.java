@@ -16,9 +16,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ScheduledJobInfo {
     private Map<String, Map<String, JobSchedulingInfo>> jobInfoMap;
+    private Map<String, String> jobTypeToIndexMap;
 
     ScheduledJobInfo() {
         this.jobInfoMap = new ConcurrentHashMap<>();
+        this.jobTypeToIndexMap = new ConcurrentHashMap<>();
     }
 
     public Map<String, JobSchedulingInfo> getJobsByIndex(String indexName) {
@@ -30,6 +32,14 @@ public class ScheduledJobInfo {
             }
         }
         return this.jobInfoMap.get(indexName);
+    }
+
+    public void putJobTypeToIndex(String jobType, String indexName) {
+        this.jobTypeToIndexMap.put(jobType, indexName);
+    }
+
+    public Map<String, String> getJobTypeToIndexMap() {
+        return this.jobTypeToIndexMap;
     }
 
     public JobSchedulingInfo getJobInfo(String indexName, String jobId) {

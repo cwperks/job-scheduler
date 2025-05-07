@@ -295,7 +295,6 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
         }
 
         Runnable scheduledSweep = () -> {
-            log.info("Running full sweep");
             TimeValue elapsedTime = getFullSweepElapsedTime();
             long delta = this.sweepPeriod.millis() - elapsedTime.millis();
             if (delta < 20L) {

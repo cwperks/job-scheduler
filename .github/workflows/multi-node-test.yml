@@ -26,7 +26,7 @@ jobs:
       # This step uses the checkout Github action: https://github.com/actions/checkout
       - name: Checkout Branch
         uses: actions/checkout@v4
-      - name: Run Job-scheduler Integ Tests with Security
+      - name: Run Job-scheduler Integ Tests with multiple nodes
         run: |
           echo "Running integ tests with multiple nodes..."
-          ./gradlew :integTest --tests "SampleJobRunnerRestMultiNodeIT" -DnumNodes=2
+          ./gradlew :opensearch-job-scheduler-sample-extension-plugin:integTest --tests "SampleJobRunnerRestMultiNodeIT" -DnumNodes=2

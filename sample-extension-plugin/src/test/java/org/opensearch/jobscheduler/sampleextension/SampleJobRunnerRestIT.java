@@ -14,6 +14,7 @@ import org.opensearch.common.xcontent.LoggingDeprecationHandler;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.jobscheduler.spi.schedule.IntervalSchedule;
+import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
 
 import java.io.IOException;
@@ -21,9 +22,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
+@OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.SUITE, numDataNodes = 2)
 public class SampleJobRunnerRestIT extends SampleExtensionIntegTestCase {
 
-    private static final String SCHEDULER_INFO_URI = "/_plugins/_job_scheduler/api/jobs";
+    static final String SCHEDULER_INFO_URI = "/_plugins/_job_scheduler/api/jobs";
 
     public void testJobCreateWithCorrectParams() throws IOException {
         SampleJobParameter jobParameter = new SampleJobParameter();
@@ -126,7 +128,7 @@ public class SampleJobRunnerRestIT extends SampleExtensionIntegTestCase {
             LoggingDeprecationHandler.INSTANCE,
             response.getEntity().getContent()
         ).map();
-        System.out.println("Response from list jobs: " + responseJson);
+        System.out.println("Response from list jobs after: " + responseJson);
     }
 
     public void testAcquiredLockPreventExecOfTasks() throws Exception {

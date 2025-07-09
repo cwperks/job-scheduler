@@ -62,6 +62,8 @@ import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import static org.opensearch.jobscheduler.sampleextension.SampleJobRunnerRestIT.SCHEDULER_INFO_URI;
+
 public class SampleExtensionIntegTestCase extends OpenSearchRestTestCase {
 
     protected boolean isHttps() {
@@ -331,7 +333,7 @@ public class SampleExtensionIntegTestCase extends OpenSearchRestTestCase {
     }
 
     protected void createTestIndex(String index) throws IOException {
-        createIndex(index, Settings.builder().put("index.number_of_shards", 2).put("index.number_of_replicas", 0).build());
+        createIndex(index, Settings.builder().put("index.number_of_shards", 1).put("index.auto_expand_replicas", "0-all").build());
     }
 
     protected void deleteTestIndex(String index) throws IOException {
@@ -376,6 +378,13 @@ public class SampleExtensionIntegTestCase extends OpenSearchRestTestCase {
                         createWatcherJob(jobId, jobParameter);
                         timer.cancel();
                         timer.purge();
+                        Response response = makeRequest(client(), "GET", SCHEDULER_INFO_URI + "?by_node", Map.of(), null);
+                        Map<String, Object> responseJson = JsonXContent.jsonXContent.createParser(
+                            NamedXContentRegistry.EMPTY,
+                            LoggingDeprecationHandler.INSTANCE,
+                            response.getEntity().getContent()
+                        ).map();
+                        System.out.println("Response from list jobs before: " + responseJson);
                     }
                     if (timeoutCounter >= 24) {
                         timer.cancel();

@@ -331,7 +331,7 @@ public class SampleExtensionIntegTestCase extends OpenSearchRestTestCase {
     }
 
     protected void createTestIndex(String index) throws IOException {
-        createIndex(index, Settings.builder().put("index.number_of_shards", 2).put("index.number_of_replicas", 0).build());
+        createIndex(index, Settings.builder().put("index.number_of_shards", 1).put("index.auto_expand_replicas", "0-all").build());
     }
 
     protected void deleteTestIndex(String index) throws IOException {

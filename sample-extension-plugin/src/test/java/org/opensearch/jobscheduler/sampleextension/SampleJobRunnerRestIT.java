@@ -123,20 +123,29 @@ public class SampleJobRunnerRestIT extends SampleExtensionIntegTestCase {
         String newIndex = createTestIndex();
         jobParameter.setIndexToWatch(newIndex);
 
+        Response response = makeRequest(client(), "GET", SCHEDULER_INFO_URI + "?by_node", Map.of(), null);
+        Map<String, Object> responseJson = JsonXContent.jsonXContent.createParser(
+            NamedXContentRegistry.EMPTY,
+            LoggingDeprecationHandler.INSTANCE,
+            response.getEntity().getContent()
+        ).map();
+        // TODO Assert response has 11 jobs before and after
+        System.out.println("Response from list jobs before: " + responseJson);
+
         // wait till the job runner runs for the first time after 1 min & inserts a record into the watched index & then update the job with
         // new params.
         waitAndCreateWatcherJob(schedJobParameter.getIndexToWatch(), jobId, jobParameter);
         long actualCount = waitAndCountRecords(newIndex, 130000);
 
         // Asserts that the job runner has the updated params & it inserted the record in the new watched index.
-        // Assert.assertEquals(1, actualCount);
+        Assert.assertEquals(1, actualCount);
         long prevIndexActualCount = waitAndCountRecords(index, 0);
 
         // Asserts that the job runner no longer updates the old index as the job params have been updated.
-        // Assert.assertEquals(1, prevIndexActualCount);
+        Assert.assertEquals(1, prevIndexActualCount);
 
-        Response response = makeRequest(client(), "GET", SCHEDULER_INFO_URI + "?by_node", Map.of(), null);
-        Map<String, Object> responseJson = JsonXContent.jsonXContent.createParser(
+        response = makeRequest(client(), "GET", SCHEDULER_INFO_URI + "?by_node", Map.of(), null);
+        responseJson = JsonXContent.jsonXContent.createParser(
             NamedXContentRegistry.EMPTY,
             LoggingDeprecationHandler.INSTANCE,
             response.getEntity().getContent()

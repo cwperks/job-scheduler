@@ -62,6 +62,8 @@ import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import static org.opensearch.jobscheduler.sampleextension.SampleJobRunnerRestIT.SCHEDULER_INFO_URI;
+
 public class SampleExtensionIntegTestCase extends OpenSearchRestTestCase {
 
     protected boolean isHttps() {
@@ -376,6 +378,13 @@ public class SampleExtensionIntegTestCase extends OpenSearchRestTestCase {
                         createWatcherJob(jobId, jobParameter);
                         timer.cancel();
                         timer.purge();
+                        Response response = makeRequest(client(), "GET", SCHEDULER_INFO_URI, Map.of(), null);
+                        Map<String, Object> responseJson = JsonXContent.jsonXContent.createParser(
+                            NamedXContentRegistry.EMPTY,
+                            LoggingDeprecationHandler.INSTANCE,
+                            response.getEntity().getContent()
+                        ).map();
+                        System.out.println("Response from list jobs before: " + responseJson);
                     }
                     if (timeoutCounter >= 24) {
                         timer.cancel();

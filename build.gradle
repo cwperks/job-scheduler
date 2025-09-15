@@ -301,6 +301,7 @@ def securityPluginFile = resolvePluginFile("opensearch-security")
 // === Setup security test ===
 // This flag indicates the existence of security plugin
 def securityEnabled = System.getProperty("security.enabled", "false") == "true" || System.getProperty("https", "false") == "true"
+def remoteStoreEnabled = System.getProperty("remote_store.enabled", "false") == "true"
 afterEvaluate {
     testClusters.integTest.nodes.each { node ->
         def plugins = node.plugins
@@ -310,14 +311,15 @@ afterEvaluate {
             plugins.add(firstPlugin)
         }
 
+        node.setting("network.bind_host", "127.0.0.1")
+        node.setting("network.publish_host", "127.0.0.1")
+
         if (securityEnabled) {
             node.extraConfigFile("kirk.pem", file("build/resources/main/kirk.pem"))
             node.extraConfigFile("kirk-key.pem", file("build/resources/main/kirk-key.pem"))
             node.extraConfigFile("esnode.pem", file("build/resources/main/esnode.pem"))
             node.extraConfigFile("esnode-key.pem", file("build/resources/main/esnode-key.pem"))
             node.extraConfigFile("root-ca.pem", file("build/resources/main/root-ca.pem"))
-            node.setting("network.bind_host", "127.0.0.1")
-            node.setting("network.publish_host", "127.0.0.1")
             node.setting("plugins.security.ssl.transport.pemcert_filepath", "esnode.pem")
             node.setting("plugins.security.ssl.transport.pemkey_filepath", "esnode-key.pem")
             node.setting("plugins.security.ssl.transport.pemtrustedcas_filepath", "root-ca.pem")
@@ -335,6 +337,15 @@ afterEvaluate {
             node.setting("plugins.security.restapi.roles_enabled", "[\"all_access\", \"security_rest_api_access\"]")
             node.setting("plugins.security.system_indices.enabled", "true")
             // node.setting("plugins.security.system_indices.indices", "[\".opendistro-ism-config\"]")
+        }
+
+        if (remoteStoreEnabled) {
+            node.setting("plugins.jobscheduler.remote_metadata_endpoint", "http://localhost:8000")
+            node.setting("plugins.jobscheduler.remote_metadata_type", "AWSDynamoDBLocal")
+            node.setting("plugins.jobscheduler.remote_metadata_region", "us-west-2")
+            node.setting("plugins.jobscheduler.remote_metadata_service_name", "remote-store-service")
+            node.setting("plugins.jobscheduler.tenant_aware", "true")
+            node.setting("plugins.jobscheduler.tenant_id", "integtest")
         }
     }
 }

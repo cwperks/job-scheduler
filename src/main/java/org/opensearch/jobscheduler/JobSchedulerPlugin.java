@@ -66,6 +66,7 @@ import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.client.Client;
 import org.opensearch.watcher.ResourceWatcherService;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -182,7 +183,7 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
         clusterService.addListener(this.sweeper);
         clusterService.addLifecycleListener(this.sweeper);
 
-        return List.of(this.lockService, this.scheduler, this.jobDetailsService);
+        return List.of(this.lockService, this.scheduler, this.jobDetailsService, this.pluginClient);
     }
 
     @Override

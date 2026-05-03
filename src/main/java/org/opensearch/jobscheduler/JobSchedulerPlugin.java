@@ -95,6 +95,7 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
     public JobSchedulerPlugin() {
         this.indicesToListen = new HashSet<>();
         this.indexToJobProviders = new HashMap<>();
+        this.standbyModeEnabled = new AtomicBoolean(false);
     }
 
     public Set<String> getIndicesToListen() {

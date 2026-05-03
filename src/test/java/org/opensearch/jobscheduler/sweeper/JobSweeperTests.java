@@ -115,6 +115,7 @@ public class JobSweeperTests extends OpenSearchAllocationTestCase {
         settingSet.add(JobSchedulerSettings.SWEEP_BACKOFF_MILLIS);
         settingSet.add(JobSchedulerSettings.SWEEP_PAGE_SIZE);
         settingSet.add(JobSchedulerSettings.JITTER_LIMIT);
+        settingSet.add(JobSchedulerSettings.STANDBY_MODE);
 
         ClusterSettings clusterSettings = new ClusterSettings(this.settings, settingSet);
         ClusterService originClusterService = ClusterServiceUtils.createClusterService(this.threadPool, discoveryNode, clusterSettings);
@@ -137,9 +138,35 @@ public class JobSweeperTests extends OpenSearchAllocationTestCase {
         );
     }
 
+    private JobSweeper createSweeper(Settings settings) {
+        ScheduledJobProvider jobProvider = new ScheduledJobProvider("JOB_TYPE", "job-index-name", this.jobParser, this.jobRunner);
+        Map<String, ScheduledJobProvider> jobProviderMap = new HashMap<>();
+        jobProviderMap.put("index-name", jobProvider);
+
+        return new JobSweeper(
+            settings,
+            this.client,
+            this.clusterService,
+            this.threadPool,
+            xContentRegistry,
+            jobProviderMap,
+            scheduler,
+            new LockServiceImpl(client, clusterService),
+            jobDetailsService
+        );
+    }
+
     public void testAfterStart() {
         this.sweeper.afterStart();
         Mockito.verify(this.threadPool).scheduleWithFixedDelay(Mockito.any(), Mockito.any(), Mockito.anyString());
+    }
+
+    public void testAfterStartInStandbyMode() {
+        JobSweeper standbySweeper = createSweeper(Settings.builder().put(JobSchedulerSettings.STANDBY_MODE.getKey(), true).build());
+
+        standbySweeper.afterStart();
+
+        Mockito.verify(this.threadPool, Mockito.never()).scheduleWithFixedDelay(Mockito.any(), Mockito.any(), Mockito.anyString());
     }
 
     public void testInitBackgroundSweep() {
@@ -210,6 +237,19 @@ public class JobSweeperTests extends OpenSearchAllocationTestCase {
             .sweep(Mockito.any(), Mockito.anyString(), Mockito.any(BytesReference.class), Mockito.any(JobDocVersion.class));
     }
 
+    public void testPostIndexInStandbyMode() {
+        JobSweeper standbySweeper = createSweeper(Settings.builder().put(JobSchedulerSettings.STANDBY_MODE.getKey(), true).build());
+        ShardId shardId = new ShardId(new Index("index-name", IndexMetadata.INDEX_UUID_NA_VALUE), 1);
+        Engine.Index index = this.getIndexOperation();
+        Engine.IndexResult indexResult = new Engine.IndexResult(1L, 1L, 1L, true);
+
+        standbySweeper.postIndex(shardId, index, indexResult);
+
+        Mockito.verify(this.scheduler, Mockito.never())
+            .schedule(Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyDouble());
+        Mockito.verify(this.clusterService, Mockito.never()).localNode();
+    }
+
     public void testPostIndex_indexFailed() {
         ShardId shardId = new ShardId(new Index("index-name", IndexMetadata.INDEX_UUID_NA_VALUE), 1);
         Engine.Index index = this.getIndexOperation();
@@ -278,6 +318,16 @@ public class JobSweeperTests extends OpenSearchAllocationTestCase {
                 Mockito.any(JobDocVersion.class),
                 Mockito.any(Double.class)
             );
+    }
+
+    public void testSweepInStandbyMode() throws IOException {
+        JobSweeper standbySweeper = createSweeper(Settings.builder().put(JobSchedulerSettings.STANDBY_MODE.getKey(), true).build());
+        ShardId shardId = new ShardId(new Index("index-name", IndexMetadata.INDEX_UUID_NA_VALUE), 1);
+
+        standbySweeper.sweep(shardId, "id", this.getTestJsonSource(), new JobDocVersion(1L, 1L, 2L));
+
+        Mockito.verify(this.scheduler, Mockito.never())
+            .schedule(Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyDouble());
     }
 
     public void testSweepUsesSeqNoSort() throws IOException {

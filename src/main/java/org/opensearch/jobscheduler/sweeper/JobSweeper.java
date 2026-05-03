@@ -96,6 +96,7 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
     private volatile Integer sweepSearchBackoffRetryCount;
     private volatile BackoffPolicy sweepSearchBackoff;
     private volatile Double jitterLimit;
+    private volatile boolean standbyMode;
 
     public JobSweeper(
         Settings settings,
@@ -132,6 +133,7 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
         this.sweepSearchBackoffMillis = JobSchedulerSettings.SWEEP_BACKOFF_MILLIS.get(settings);
         this.sweepSearchBackoffRetryCount = JobSchedulerSettings.SWEEP_BACKOFF_RETRY_COUNT.get(settings);
         this.jitterLimit = JobSchedulerSettings.JITTER_LIMIT.get(settings);
+        this.standbyMode = JobSchedulerSettings.STANDBY_MODE.get(settings);
         this.sweepSearchBackoff = this.updateRetryPolicy();
     }
 
@@ -163,14 +165,37 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
             this.jitterLimit = doubleValue;
             log.debug("Setting background sweep jitter limit: {}", this.jitterLimit);
         });
+        clusterService.getClusterSettings().addSettingsUpdateConsumer(JobSchedulerSettings.STANDBY_MODE, standbyModeEnabled -> {
+            this.standbyMode = standbyModeEnabled;
+            if (standbyModeEnabled) {
+                enterStandbyMode();
+            } else {
+                log.info("Job Scheduler standby mode disabled, reinitializing background sweep.");
+                initBackgroundSweep();
+            }
+        });
     }
 
     private BackoffPolicy updateRetryPolicy() {
         return BackoffPolicy.exponentialBackoff(this.sweepSearchBackoffMillis, this.sweepSearchBackoffRetryCount);
     }
 
+    private void enterStandbyMode() {
+        log.info("Job Scheduler standby mode enabled, cancelling background sweep and descheduling local jobs.");
+        if (this.scheduledFullSweep != null) {
+            this.scheduledFullSweep.cancel();
+            this.scheduledFullSweep = null;
+        }
+        this.scheduler.descheduleAll();
+        this.sweptJobs.clear();
+    }
+
     @Override
     public void afterStart() {
+        if (standbyMode) {
+            log.info("Job Scheduler standby mode enabled, background sweep will not start.");
+            return;
+        }
         this.initBackgroundSweep();
     }
 
@@ -188,6 +213,10 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
 
     @Override
     public void postIndex(ShardId shardId, Engine.Index index, Engine.IndexResult result) {
+        if (standbyMode) {
+            log.debug("Job Scheduler standby mode enabled, ignoring indexed job {} on index {}.", index.id(), shardId.getIndexName());
+            return;
+        }
         if (result.getResultType().equals(Engine.Result.Type.FAILURE)) {
             log.info("Indexing failed for job {} on index {}", index.id(), shardId.getIndexName());
             return;
@@ -210,6 +239,10 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
 
     @Override
     public void postDelete(ShardId shardId, Engine.Delete delete, Engine.DeleteResult result) {
+        if (standbyMode) {
+            log.debug("Job Scheduler standby mode enabled, ignoring deleted job {} on index {}.", delete.id(), shardId.getIndexName());
+            return;
+        }
         if (result.getResultType() == Engine.Result.Type.FAILURE) {
             ConcurrentHashMap<String, JobDocVersion> shardJobs = this.sweptJobs.containsKey(shardId)
                 ? this.sweptJobs.get(shardId)
@@ -234,6 +267,10 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
 
     @VisibleForTesting
     void sweep(ShardId shardId, String docId, BytesReference jobSource, JobDocVersion jobDocVersion) {
+        if (standbyMode) {
+            log.debug("Job Scheduler standby mode enabled, skipping sweep for job {} on index {}.", docId, shardId.getIndexName());
+            return;
+        }
         ConcurrentHashMap<String, JobDocVersion> jobVersionMap;
         if (this.sweptJobs.containsKey(shardId)) {
             jobVersionMap = this.sweptJobs.get(shardId);
@@ -281,6 +318,9 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
 
     @Override
     public void clusterChanged(ClusterChangedEvent event) {
+        if (standbyMode) {
+            return;
+        }
         for (String indexName : indexToProviders.keySet()) {
             if (event.indexRoutingTableChanged(indexName)) {
                 this.fullSweepExecutor.submit(() -> this.sweepIndex(indexName));
@@ -290,6 +330,10 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
 
     @VisibleForTesting
     void initBackgroundSweep() {
+        if (standbyMode) {
+            log.info("Job Scheduler standby mode enabled, skipping background sweep initialization.");
+            return;
+        }
         if (scheduledFullSweep != null) {
             this.scheduledFullSweep.cancel();
         }
@@ -333,6 +377,10 @@ public class JobSweeper extends LifecycleListener implements IndexingOperationLi
 
     @VisibleForTesting
     void sweepIndex(String indexName) {
+        if (standbyMode) {
+            log.debug("Job Scheduler standby mode enabled, skipping full sweep for index {}.", indexName);
+            return;
+        }
         ClusterState clusterState = this.clusterService.state();
         // checks to see if index no longer exists
         if (!clusterState.routingTable().hasIndex(indexName)) {

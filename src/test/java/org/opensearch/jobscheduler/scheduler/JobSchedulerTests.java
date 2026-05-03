@@ -29,6 +29,7 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RunWith(RandomizedRunner.class)
 @SuppressWarnings({ "rawtypes" })
@@ -87,6 +88,24 @@ public class JobSchedulerTests extends OpenSearchTestCase {
         Assert.assertFalse(scheduled);
     }
 
+    public void testSchedule_standbyMode() {
+        AtomicBoolean standbyModeEnabled = new AtomicBoolean(true);
+        this.scheduler = new JobScheduler(this.threadPool, null, standbyModeEnabled::get);
+        ScheduledJobParameter jobParameter = buildScheduledJobParameter(
+            "job-id",
+            "dummy job name",
+            Instant.now().minus(1, ChronoUnit.HOURS),
+            Instant.now(),
+            new CronSchedule("* * * * *", ZoneId.systemDefault()),
+            true
+        );
+
+        boolean scheduled = this.scheduler.schedule("index-name", "job-id", jobParameter, null, dummyVersion, jitterLimit);
+
+        Assert.assertFalse(scheduled);
+        Mockito.verify(this.threadPool, Mockito.never()).schedule(Mockito.any(), Mockito.any(), Mockito.anyString());
+    }
+
     public void testDeschedule_singleJob() {
         JobSchedulingInfo jobInfo = new JobSchedulingInfo("job-index", "job-id", null);
         Scheduler.ScheduledCancellable scheduledCancellable = Mockito.mock(Scheduler.ScheduledCancellable.class);
@@ -136,6 +155,26 @@ public class JobSchedulerTests extends OpenSearchTestCase {
 
     public void testDeschedule_noSuchJob() {
         Assert.assertTrue(this.scheduler.deschedule("index-name", "job-id"));
+    }
+
+    public void testDescheduleAll() {
+        JobSchedulingInfo jobInfo1 = new JobSchedulingInfo("index-name", "job-id-1", null);
+        Scheduler.ScheduledCancellable scheduledCancellable1 = Mockito.mock(Scheduler.ScheduledCancellable.class);
+        Mockito.when(scheduledCancellable1.cancel()).thenReturn(true);
+        jobInfo1.setScheduledCancellable(scheduledCancellable1);
+        this.scheduler.getScheduledJobInfo().addJob("index-name", "job-id-1", jobInfo1);
+
+        JobSchedulingInfo jobInfo2 = new JobSchedulingInfo("index-name", "job-id-2", null);
+        Scheduler.ScheduledCancellable scheduledCancellable2 = Mockito.mock(Scheduler.ScheduledCancellable.class);
+        Mockito.when(scheduledCancellable2.cancel()).thenReturn(true);
+        jobInfo2.setScheduledCancellable(scheduledCancellable2);
+        this.scheduler.getScheduledJobInfo().addJob("index-name", "job-id-2", jobInfo2);
+
+        this.scheduler.descheduleAll();
+
+        Assert.assertTrue(this.scheduler.getScheduledJobInfo().getJobsByIndex("index-name").isEmpty());
+        Mockito.verify(scheduledCancellable1).cancel();
+        Mockito.verify(scheduledCancellable2).cancel();
     }
 
     public void testReschedule_noEnableTime() {

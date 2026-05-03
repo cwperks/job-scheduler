@@ -55,7 +55,8 @@ public class JobSchedulerSettingsTests extends OpenSearchTestCase {
                     JobSchedulerSettings.SWEEP_BACKOFF_MILLIS,
                     JobSchedulerSettings.SWEEP_BACKOFF_RETRY_COUNT,
                     JobSchedulerSettings.SWEEP_PAGE_SIZE,
-                    JobSchedulerSettings.SWEEP_PERIOD
+                    JobSchedulerSettings.SWEEP_PERIOD,
+                    JobSchedulerSettings.STANDBY_MODE
                 )
             )
         );
@@ -72,6 +73,10 @@ public class JobSchedulerSettingsTests extends OpenSearchTestCase {
         Settings settings = Settings.builder().put("plugins.jobscheduler.request_timeout", "42s").build();
         assertEquals(JobSchedulerSettings.REQUEST_TIMEOUT.get(settings), TimeValue.timeValueSeconds(42));
         assertEquals(LegacyOpenDistroJobSchedulerSettings.REQUEST_TIMEOUT.get(settings), TimeValue.timeValueSeconds(10));
+    }
+
+    public void testStandbyModeDefaultsToFalse() {
+        assertFalse(JobSchedulerSettings.STANDBY_MODE.get(Settings.EMPTY));
     }
 
     public void testSettingsGetValueWithLegacyFallback() {

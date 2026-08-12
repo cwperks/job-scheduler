@@ -72,6 +72,7 @@ import java.util.Set;
 import java.util.Collection;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 public class JobSchedulerPlugin extends Plugin implements ActionPlugin, ExtensiblePlugin, SystemIndexPlugin, IdentityAwarePlugin {
@@ -89,10 +90,12 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
     private PluginClient pluginClient;
 
     private JobDetailsService jobDetailsService;
+    private AtomicBoolean standbyModeEnabled;
 
     public JobSchedulerPlugin() {
         this.indicesToListen = new HashSet<>();
         this.indexToJobProviders = new HashMap<>();
+        this.standbyModeEnabled = new AtomicBoolean(false);
     }
 
     public Set<String> getIndicesToListen() {
@@ -131,11 +134,13 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
         Supplier<RepositoriesService> repositoriesServiceSupplier
     ) {
         Supplier<Boolean> statusHistoryEnabled = () -> JobSchedulerSettings.STATUS_HISTORY.get(environment.settings());
+        standbyModeEnabled = new AtomicBoolean(JobSchedulerSettings.STANDBY_MODE.get(environment.settings()));
+        clusterService.getClusterSettings().addSettingsUpdateConsumer(JobSchedulerSettings.STANDBY_MODE, standbyModeEnabled::set);
         this.pluginClient = new PluginClient(client);
         this.historyService = new JobHistoryService(pluginClient, clusterService);
         this.lockService = new LockServiceImpl(pluginClient, clusterService, historyService, statusHistoryEnabled);
         this.jobDetailsService = new JobDetailsService(client, clusterService, this.indicesToListen, this.indexToJobProviders);
-        this.scheduler = new JobScheduler(threadPool, this.lockService);
+        this.scheduler = new JobScheduler(threadPool, this.lockService, standbyModeEnabled::get);
         this.sweeper = initSweeper(
             environment.settings(),
             client,
@@ -168,6 +173,7 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
         settingList.add(JobSchedulerSettings.SWEEP_PERIOD);
         settingList.add(JobSchedulerSettings.JITTER_LIMIT);
         settingList.add(JobSchedulerSettings.STATUS_HISTORY);
+        settingList.add(JobSchedulerSettings.STANDBY_MODE);
         return settingList;
     }
 
@@ -268,8 +274,8 @@ public class JobSchedulerPlugin extends Plugin implements ActionPlugin, Extensib
         Supplier<DiscoveryNodes> nodesInCluster
     ) {
         RestGetJobDetailsAction restGetJobDetailsAction = new RestGetJobDetailsAction(jobDetailsService);
-        RestGetLockAction restGetLockAction = new RestGetLockAction(lockService);
-        RestReleaseLockAction restReleaseLockAction = new RestReleaseLockAction(lockService);
+        RestGetLockAction restGetLockAction = new RestGetLockAction(lockService, standbyModeEnabled::get);
+        RestReleaseLockAction restReleaseLockAction = new RestReleaseLockAction(lockService, standbyModeEnabled::get);
         RestGetScheduledInfoAction restGetScheduledInfoAction = new RestGetScheduledInfoAction();
         RestGetLocksAction restGetAllLocksAction = new RestGetLocksAction();
         return List.of(

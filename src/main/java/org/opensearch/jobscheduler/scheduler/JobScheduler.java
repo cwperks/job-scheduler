@@ -28,8 +28,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Components that handles job scheduling/descheduling.
@@ -41,12 +43,18 @@ public class JobScheduler {
     private ScheduledJobInfo scheduledJobInfo;
     private Clock clock;
     private final LockService lockService;
+    private final Supplier<Boolean> standbyModeEnabled;
 
     public JobScheduler(ThreadPool threadPool, final LockService lockService) {
+        this(threadPool, lockService, () -> false);
+    }
+
+    public JobScheduler(ThreadPool threadPool, final LockService lockService, final Supplier<Boolean> standbyModeEnabled) {
         this.threadPool = threadPool;
         this.scheduledJobInfo = new ScheduledJobInfo();
         this.clock = Clock.systemDefaultZone();
         this.lockService = lockService;
+        this.standbyModeEnabled = standbyModeEnabled;
     }
 
     @VisibleForTesting
@@ -71,6 +79,10 @@ public class JobScheduler {
         JobDocVersion version,
         Double jitterLimit
     ) {
+        if (standbyModeEnabled.get()) {
+            log.debug("Job Scheduler standby mode is enabled, skipping scheduling job id {} for index {}.", docId, indexName);
+            return false;
+        }
         log.info("Scheduling job id {} for index {} .", docId, indexName);
         JobSchedulingInfo jobInfo;
         synchronized (this.scheduledJobInfo.getJobsByIndex(indexName)) {
@@ -127,6 +139,12 @@ public class JobScheduler {
         return true;
     }
 
+    public void descheduleAll() {
+        for (Map.Entry<String, Map<String, JobSchedulingInfo>> indexJobs : this.scheduledJobInfo.getJobInfoMap().entrySet()) {
+            this.bulkDeschedule(indexJobs.getKey(), new ArrayList<>(indexJobs.getValue().keySet()));
+        }
+    }
+
     @VisibleForTesting
     boolean reschedule(
         ScheduledJobParameter jobParameter,
@@ -135,6 +153,10 @@ public class JobScheduler {
         JobDocVersion version,
         Double jitterLimit
     ) {
+        if (standbyModeEnabled.get()) {
+            log.debug("Job Scheduler standby mode is enabled, skipping reschedule for job {}.", jobParameter.getName());
+            return false;
+        }
         if (jobParameter.getEnabledTime() == null) {
             log.info("There is no enable time of job {}, this job should never be scheduled.", jobParameter.getName());
             return false;

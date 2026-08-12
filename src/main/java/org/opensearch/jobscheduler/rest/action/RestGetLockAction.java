@@ -28,6 +28,7 @@ import org.opensearch.core.rest.RestStatus;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -45,11 +46,18 @@ import static org.opensearch.jobscheduler.spi.LockModel.GET_LOCK_ACTION;
  */
 public class RestGetLockAction extends BaseRestHandler {
     private final Logger logger = LogManager.getLogger(RestGetLockAction.class);
+    private static final String STANDBY_MODE_MESSAGE = "Job Scheduler lock mutation is read-only because this cluster is in standby mode.";
 
     public LockService lockService;
+    private final Supplier<Boolean> standbyModeEnabled;
 
     public RestGetLockAction(final LockService lockService) {
+        this(lockService, () -> false);
+    }
+
+    public RestGetLockAction(final LockService lockService, final Supplier<Boolean> standbyModeEnabled) {
         this.lockService = lockService;
+        this.standbyModeEnabled = standbyModeEnabled;
     }
 
     @Override
@@ -65,6 +73,10 @@ public class RestGetLockAction extends BaseRestHandler {
     @VisibleForTesting
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient client) throws IOException {
+        if (standbyModeEnabled.get()) {
+            return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.FORBIDDEN, STANDBY_MODE_MESSAGE));
+        }
+
         XContentParser parser = restRequest.contentParser();
         ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser);
 

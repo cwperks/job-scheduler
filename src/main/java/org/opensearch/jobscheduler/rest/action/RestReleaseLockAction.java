@@ -16,6 +16,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.core.action.ActionListener;
@@ -35,11 +36,18 @@ public class RestReleaseLockAction extends BaseRestHandler {
 
     public static final String RELEASE_LOCK_ACTION = "release_lock_action";
     private final Logger logger = LogManager.getLogger(RestReleaseLockAction.class);
+    private static final String STANDBY_MODE_MESSAGE = "Job Scheduler lock mutation is read-only because this cluster is in standby mode.";
 
     private LockService lockService;
+    private final Supplier<Boolean> standbyModeEnabled;
 
     public RestReleaseLockAction(LockService lockService) {
+        this(lockService, () -> false);
+    }
+
+    public RestReleaseLockAction(LockService lockService, Supplier<Boolean> standbyModeEnabled) {
         this.lockService = lockService;
+        this.standbyModeEnabled = standbyModeEnabled;
     }
 
     @Override
@@ -56,6 +64,10 @@ public class RestReleaseLockAction extends BaseRestHandler {
 
     @Override
     public RestChannelConsumer prepareRequest(RestRequest restRequest, NodeClient nodeClient) throws IOException {
+        if (standbyModeEnabled.get()) {
+            return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.FORBIDDEN, STANDBY_MODE_MESSAGE));
+        }
+
         String lockId = restRequest.param(LockModel.LOCK_ID);
         if (lockId == null || lockId.isEmpty()) {
             throw new IOException("lockId cannot be null or empty");

@@ -60,4 +60,11 @@ public class JobSchedulerSettings {
         Setting.Property.NodeScope,
         Setting.Property.Dynamic
     );
+
+    public static final Setting<Boolean> STANDBY_MODE = Setting.boolSetting(
+        "plugins.jobscheduler.standby_mode",
+        false,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic
+    );
 }
